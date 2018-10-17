@@ -22,6 +22,8 @@ oauth = OAuth(ACCESS_TOKEN, ACCESS_SECRET, CONSUMER_KEY, CONSUMER_SECRET)
 twitter = Twitter(auth=oauth)
 
 
+#ret =twitter.search.tweets(q= '%2349ers',result_type = 'popular')
+#print json.dumps(ret)
 ###########examples of api usage##########
 
 #iterator = twitter_stream.statuses.sample()   # Get a sample of the public data following through Twitter
@@ -29,40 +31,65 @@ twitter = Twitter(auth=oauth)
 world_trends = twitter.trends.available(_woeid=1)  #what trends are available worldwide
 #sfo_trends = twitter.trends.place(_id = 2487956)     # get trends by location code
 #results = twitter.users.search(q = '"New Cross"')   # user search
-#query = twitter.search.tweets(q = "pink elephants")
-#statuses = twitter.statuses.home_timeline(count = 50)
-#tweets = twitter.statuses.user_timeline(screen_name="49ersfangirl")
-#followers = twitter.followers.ids(screen_name="cocoweixu")
-#print followers
-# Print each tweet in the stream to the screen 
-# Here we set it to stop after getting 1000 tweets. 
-# You don't have to set it to stop, but can continue running 
-# the Twitter API to collect data for days or even longer. 
- tweet_count = 10
- for tweet in world_trends:
-     tweet_count -= 1
-    # Twitter Python Tool wraps the data returned by Twitter 
-    # as a TwitterDictResponse object.
-    # We convert it back to the JSON format to print/score
-     print json.dumps(tweet)  
-    
-    # The command below will do pretty printing for JSON data, try it out
-    # print json.dumps(tweet, indent=4)
-       
-    # if tweet_count <= 0:
-        # break 
-        # 
-        # 
-        # 
-# source = "ideoforms"
-# target = "lewisrichard"
+#query = twitter.search.tweets(q= "%2349ers",result_type = "popular")
+#print json.dumps(world_trends)
+
+
+countrys = {}
+woeid = []
+for tweet in world_trends:
+
+    countryName = tweet.get('country')
+    locations = countrys.get(countryName)
+    woeid.append(tweet.get('woeid'))
+    if(locations != None):
+        locations.append(tweet.get('name'))
+        countrys[countryName] = locations
+    else:
+        newSet = [tweet.get('name')]
+        countrys[countryName] = newSet
+
+
+with open('results.txt','w') as file:
+    for location in woeid:
+        tweets = twitter.trends.place(_id = location)
+        #print json.dumps(tweets)
+        trends = tweets[0]['trends']  # trendings
+        store_entity = {}
+        store_entity["woeid"]= location
+        store_entity["locationName"]= tweets[0]["locations"][0]["name"]
+
+        for trending in trends:
+            query = trending.get("query")
+            store_entity["hashtag"]= query
+            popular_tweets = twitter.search.tweets(q= query,result_type = "popular",count = 5)
+            statuses = popular_tweets.get("statuses")
+            count = 3
+            top_3_status = []
+            for status in statuses:
+                if count<=0:
+                    break;
+                map = {}
+                map["text"] = status.get("text")
+                map["favorite_count"] = status["favorite_count"]
+                map["retweet_count"] = status["retweet_count"]
+                top_3_status.append(map)
+
+            store_entity["top_tweets"] = top_3_status
+            json.dump(store_entity,file)
+        #todo write into DB
+
+
+
+
+
 
 #-----------------------------------------------------------------------
 # perform the API query
 # twitter API docs: https://dev.twitter.com/rest/reference/get/friendships/show
 #-----------------------------------------------------------------------
 #result = twitter.friendships.show(source_screen_name = source,
-                                  target_screen_name = target)
+#   target_screen_name = target)#
 
 #-----------------------------------------------------------------------
 # extract the relevant properties
